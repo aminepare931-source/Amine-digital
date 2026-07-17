@@ -125,6 +125,10 @@ onSnapshot(q,snap=>{
     var p=window._prods.find(x=>x._id===window._initPid);
     if(p){window._initDone=true;openDetail(window._initPid);}
   }
+},err=>{
+  console.error('❌ Erreur Firestore (produits) :', err.code, err.message);
+  var grid=document.getElementById('prodGrid');
+  if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:#ef4444">⚠️ Erreur de chargement des produits : '+err.code+'<br><small>'+err.message+'</small></div>';
 });
 window._listenOrder=(orderId,cb)=>onSnapshot(doc(db,'commandes',orderId),snap=>{if(snap.exists())cb({...snap.data(),_id:snap.id});});
 window._createOrder=async data=>{
