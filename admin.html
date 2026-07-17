@@ -372,7 +372,6 @@ img{display:block;max-width:100%}
   .adm-wrap{max-width:1400px}
 }
 </style>
-<script src="secrets.local.js"></script>
 </head>
 <body>
 
@@ -914,12 +913,12 @@ async function genExtras() {
   var prompt = 'Tu es expert en marketing digital africain.\nGénère exactement 5 points forts PERCUTANTS pour ce produit :\n- Nom : '+(name||'Produit')+'\n- Catégorie : '+(cat||'')+'\n- Description : '+(desc||'')+'\n\nRègles :\n- Exactement 5 lignes\n- Max 8 mots par ligne\n- Commence par un verbe ou bénéfice direct\n- En français\n- Sans numéros ni tirets\nFormat : une ligne par point uniquement.';
 
   try {
-    var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer ' + (window.RACHIDA_SECRETS && window.RACHIDA_SECRETS.groqKey || '')},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:200,messages:[{role:'user',content:prompt}]})
+    var res = await fetch('/api/rachida-chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({max_tokens:200,messages:[{role:'user',content:prompt}]})
     });
     var data = await res.json();
-    var text = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+    var text = data.reply || '';
     var lines = text.split('\n').map(function(l){return l.replace(/^[-•*\d.)\s]+/,'').trim();}).filter(function(l){return l.length>3;}).slice(0,5);
     if(lines.length<3){toast('Réessayez','err');btn.textContent='✨ Générer auto';btn.disabled=false;return;}
     document.getElementById('pExtras').value = lines.join('\n');
@@ -1667,17 +1666,16 @@ window.rachidaAdminSend = async function(msg) {
   _rachidaHistory.push({role:'user',content:msg});
 
   try {
-    var res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    var res = await fetch('/api/rachida-chat',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer ' + (window.RACHIDA_SECRETS && window.RACHIDA_SECRETS.groqKey || '')},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'llama-3.3-70b-versatile',
         max_tokens:1000,
         messages:[{role:'system',content:sys}].concat(_rachidaHistory.map(function(m){return{role:m.role==='assistant'?'assistant':'user',content:m.content};}))
       })
     });
     var data = await res.json();
-    var reply = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'Désolée, problème technique.';
+    var reply = data.reply || 'Désolée, problème technique.';
     _rachidaHistory.push({role:'assistant',content:reply});
     document.getElementById(typId).remove();
     rachidaAdminAddMsg(reply, false);
@@ -1767,27 +1765,20 @@ async function removePromo(id){
 }
 
 
-/* ═══ ONESIGNAL ═══ */
-var OS_APP_ID = 'f8b73fe5-9778-4235-9db5-e25302527416';
-var OS_REST_KEY = (window.RACHIDA_SECRETS && window.RACHIDA_SECRETS.oneSignalKey) || '';
+/* ═══ ONESIGNAL (via proxy sécurisé) ═══ */
 
 async function osGetStats() {
   try {
-    var r = await fetch('https://onesignal.com/api/v1/apps/' + OS_APP_ID, {
-      headers: { 'Authorization': 'Basic ' + OS_REST_KEY }
-    });
+    var r = await fetch('/api/onesignal-notify?action=stats');
     var d = await r.json();
-    var sub = d.players || 0;
-    document.getElementById('osSubscribers').textContent = sub;
+    document.getElementById('osSubscribers').textContent = d.subscribers || 0;
   } catch(e) { document.getElementById('osSubscribers').textContent = '—'; }
 }
 
 async function osGetHistory() {
   var el = document.getElementById('osHistory');
   try {
-    var r = await fetch('https://onesignal.com/api/v1/notifications?app_id=' + OS_APP_ID + '&limit=5', {
-      headers: { 'Authorization': 'Basic ' + OS_REST_KEY }
-    });
+    var r = await fetch('/api/onesignal-notify?action=history');
     var d = await r.json();
     var notifs = d.notifications || [];
     if(!notifs.length){ el.textContent = 'Aucune campagne envoyée.'; return; }
@@ -1814,21 +1805,13 @@ async function sendOSNotif(titre, message, url) {
   var u = url || document.getElementById('osUrl').value.trim() || 'https://aminedigital.pages.dev';
   if(!t || !m){ toast('Titre et message obligatoires','err'); return; }
   try {
-    var r = await fetch('https://onesignal.com/api/v1/notifications', {
+    var r = await fetch('/api/onesignal-notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + OS_REST_KEY },
-      body: JSON.stringify({
-        app_id: OS_APP_ID,
-        included_segments: ['All'],
-        headings: { fr: t, en: t },
-        contents: { fr: m, en: m },
-        url: u,
-        chrome_web_icon: 'https://aminedigital.pages.dev/logo192.png',
-        firefox_icon: 'https://aminedigital.pages.dev/logo192.png'
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: t, message: m, url: u })
     });
     var d = await r.json();
-    if(d.id){
+    if(d.success){
       toast('✅ Notification envoyée à ' + (d.recipients||0) + ' abonnés !','ok');
       document.getElementById('osTitle').value = '';
       document.getElementById('osMessage').value = '';
