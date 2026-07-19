@@ -1975,9 +1975,30 @@ setTimeout(autoResumeCheck,1500);
           <div style="background:rgba(99,102,241,.06);border:2px solid rgba(99,102,241,.15);border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px;color:#666;line-height:1.6">Disponible : <strong id="affRetraitDispo" style="color:#4f46e5">0 FCFA</strong> — Minimum : <strong style="color:#4f46e5">2 000 FCFA</strong><br>Paiement Mobile Money sous 24-48h.</div>
           <div id="affRetraitErr" style="display:none;background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:10px 14px;font-size:12px;color:#991b1b;margin-bottom:12px"></div>
           <div id="affRetraitOk" style="display:none;background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:12px"></div>
-          <div style="margin-bottom:11px"><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;color:#666">Montant (FCFA)</label><input id="affRetraitMontant" type="number" min="2000" placeholder="Ex: 5000" style="width:100%;padding:11px 13px;border:2px solid #e8e8e8;border-radius:11px;font-size:13px;background:#f4f4f4;outline:none;font-family:inherit"></div>
+
+          <div style="margin-bottom:11px">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;color:#666">Montant (FCFA)</label>
+            <input id="affRetraitMontant" type="number" min="2000" placeholder="Ex: 5000" style="width:100%;padding:11px 13px;border:2px solid #e8e8e8;border-radius:11px;font-size:13px;background:#f4f4f4;outline:none;font-family:inherit;margin-bottom:8px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="affRetraitQuick"></div>
+          </div>
+
+          <div style="margin-bottom:11px">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;color:#666">Opérateur Mobile Money</label>
+            <select id="affRetraitOper" style="width:100%;padding:11px 13px;border:2px solid #e8e8e8;border-radius:11px;font-size:13px;background:#f4f4f4;outline:none;font-family:inherit">
+              <option value="orange">🟠 Orange Money</option>
+              <option value="moov">🔵 Moov Money</option>
+              <option value="wave">🌊 Wave</option>
+              <option value="coris">🏦 Coris Money</option>
+            </select>
+          </div>
+
           <div style="margin-bottom:14px"><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;color:#666">Numéro Mobile Money</label><input id="affRetraitTel" type="tel" placeholder="+226 XX XX XX XX" style="width:100%;padding:11px 13px;border:2px solid #e8e8e8;border-radius:11px;font-size:13px;background:#f4f4f4;outline:none;font-family:inherit"></div>
           <button onclick="affDemanderRetrait()" style="width:100%;background:#F5C518;color:#111;padding:13px;border-radius:12px;font-family:'Unbounded',sans-serif;font-weight:700;font-size:12px;border:none;cursor:pointer">💸 Demander le retrait</button>
+
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid #eee">
+            <div style="font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:8px">📜 Mes demandes de retrait</div>
+            <div id="affRetraitHistGrid"><div style="text-align:center;padding:14px;color:#999;font-size:11px">Aucune demande pour l'instant</div></div>
+          </div>
         </div>
       </div>
     </div>
@@ -2094,19 +2115,53 @@ async function affRenderDashboard() {
   document.getElementById('affKpiClics').textContent=_aff.clics||0;
   document.getElementById('affRetraitDispo').textContent=(_aff.gainsDispo||0).toLocaleString('fr')+' FCFA';
   document.getElementById('affRetraitTel').value=_aff.tel||'';
+  if(_aff.operateur){
+    var operSel=document.getElementById('affRetraitOper');
+    if(operSel) operSel.value=_aff.operateur;
+  }
+
+  // Boutons montants rapides
+  var dispo = _aff.gainsDispo||0;
+  var montants = [2000,5000,10000].filter(function(m){return m<=dispo;});
+  if(dispo>0) montants.push(dispo);
+  var quickHTML = montants.map(function(m){
+    return '<button onclick="document.getElementById(\'affRetraitMontant\').value='+m+'" style="padding:8px 4px;border-radius:8px;background:#f4f4f4;border:1px solid #e8e8e8;font-size:10px;font-weight:700;color:#111;cursor:pointer">'+m.toLocaleString('fr')+'</button>';
+  }).join('');
+  document.getElementById('affRetraitQuick').innerHTML = quickHTML;
 
   var prods = window._prods || [];
   var base = window.location.origin + window.location.pathname;
 
-  // Liens
+  // Liens — cartes produit complètes avec image, description, téléchargement et partage
   var liensHTML = prods.map(function(p){
     var url = base + '?p=' + p._id + '&ref=' + _aff.code;
-    return '<div style="background:#f4f4f4;border:2px dashed #e8e8e8;border-radius:12px;padding:10px;margin-bottom:8px">'
-      +'<div style="font-size:10px;font-weight:700;color:#666;text-transform:uppercase;margin-bottom:6px">'+p.name+'</div>'
-      +'<div style="display:flex;align-items:center;gap:8px">'
-      +'<div style="flex:1;font-size:10px;color:#111;word-break:break-all;font-family:monospace;background:#fff;padding:6px 8px;border-radius:7px;border:1px solid #e8e8e8">'+url+'</div>'
-      +'<button onclick="affCopyLink(\''+url.replace(/'/g,"\\'")+'\')" style="padding:6px 10px;border-radius:7px;background:#111;color:#fff;font-size:10px;font-weight:700;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0">📋 Copier</button>'
-      +'</div></div>';
+    var img = (p.images && p.images.length) ? p.images[0] : null;
+    var desc = (p.description || '').substring(0, 90) + ((p.description||'').length > 90 ? '…' : '');
+    var waText = encodeURIComponent('🔥 ' + p.name + ' — ' + p.price.toLocaleString('fr') + ' FCFA\n\n' + (p.description||'').substring(0,120) + '\n\n👉 ' + url);
+    var fbShareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url);
+
+    return '<div style="background:#fff;border:2px solid #111;border-radius:16px;overflow:hidden;margin-bottom:14px">'
+      + '<div style="display:flex;gap:0">'
+      + (img
+          ? '<div style="width:92px;height:92px;flex-shrink:0;background:#f4f4f4"><img src="'+img+'" alt="'+p.name+'" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>'
+          : '<div style="width:92px;height:92px;flex-shrink:0;background:#f4f4f4;display:flex;align-items:center;justify-content:center;font-size:1.6rem">📦</div>')
+      + '<div style="flex:1;padding:10px 12px;min-width:0">'
+      + '<div style="font-size:12px;font-weight:700;color:#111;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div>'
+      + '<div style="font-size:10px;color:#666;line-height:1.4;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+desc+'</div>'
+      + '<div style="font-family:Unbounded,sans-serif;font-size:12px;font-weight:900;color:#4f46e5">'+p.price.toLocaleString('fr')+' FCFA</div>'
+      + '</div></div>'
+
+      + '<div style="padding:10px 12px;background:#f9f9f9;border-top:1px solid #eee">'
+      + '<div style="font-size:9px;color:#888;word-break:break-all;font-family:monospace;background:#fff;padding:6px 8px;border-radius:7px;border:1px solid #e8e8e8;margin-bottom:8px">'+url+'</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">'
+      +   '<button onclick="affCopyLink(\''+url.replace(/'/g,"\\'")+'\')" title="Copier le lien" style="padding:8px 4px;border-radius:8px;background:#111;color:#fff;font-size:9px;font-weight:700;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px">📋<span>Copier</span></button>'
+      +   (img
+          ? '<button onclick="affDownloadImage(\''+img.replace(/'/g,"\\'")+'\', \''+(p.name||'produit').replace(/'/g,"\\'").replace(/[^a-zA-Z0-9À-ÿ ]/g,'')+'\')" title="Télécharger l\'image" style="padding:8px 4px;border-radius:8px;background:#F5C518;color:#111;font-size:9px;font-weight:700;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px">⬇️<span>Image</span></button>'
+          : '<div></div>')
+      +   '<a href="https://wa.me/?text='+waText+'" target="_blank" title="Partager sur WhatsApp" style="padding:8px 4px;border-radius:8px;background:#25D366;color:#fff;font-size:9px;font-weight:700;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:2px">💬<span>WhatsApp</span></a>'
+      +   '<a href="'+fbShareUrl+'" target="_blank" title="Partager sur Facebook" style="padding:8px 4px;border-radius:8px;background:#1877F2;color:#fff;font-size:9px;font-weight:700;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:2px">📘<span>Facebook</span></a>'
+      + '</div></div>'
+      + '</div>';
   }).join('');
   document.getElementById('affLiensGrid').innerHTML = liensHTML || '<p style="font-size:12px;color:#666">Aucun produit disponible.</p>';
 
@@ -2138,6 +2193,23 @@ async function affRenderDashboard() {
       }).join('');
     }
   } catch(e){}
+
+  // Historique des retraits
+  try {
+    var retraitsSnap = await window._getDocs(window._query(window._collection(window._db,'retraits'),window._where('affCode','==',_aff.code),window._orderBy('createdAt','desc')));
+    var retraits = retraitsSnap.docs.map(function(d){return d.data();});
+    if(retraits.length){
+      var statutLabel = {en_attente:['⏳ En attente','#a16207','rgba(245,197,24,.15)'],valide:['✅ Payé','#166534','rgba(22,163,74,.1)'],refuse:['❌ Refusé','#991b1b','rgba(220,38,38,.1)']};
+      document.getElementById('affRetraitHistGrid').innerHTML = retraits.map(function(r){
+        var date = new Date(r.createdAt||0).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+        var st = statutLabel[r.statut] || statutLabel.en_attente;
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f4f4f4;gap:8px">'
+          +'<div><div style="font-size:12px;font-weight:700">'+r.montant.toLocaleString('fr')+' FCFA</div><div style="font-size:10px;color:#666">'+date+' · '+(r.operateur||'')+'</div></div>'
+          +'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:'+st[2]+';color:'+st[1]+';white-space:nowrap">'+st[0]+'</span>'
+          +'</div>';
+      }).join('');
+    }
+  } catch(e){}
 }
 
 function affCopyLink(url){
@@ -2145,9 +2217,30 @@ function affCopyLink(url){
   else{var t=document.createElement('textarea');t.value=url;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('✅ Lien copié !','ok');}
 }
 
+async function affDownloadImage(imgUrl, productName){
+  try {
+    var res = await fetch(imgUrl);
+    var blob = await res.blob();
+    var ext = (blob.type && blob.type.split('/')[1]) || 'jpg';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (productName || 'produit').replace(/\s+/g,'-').toLowerCase() + '.' + ext;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+    toast('✅ Image téléchargée !','ok');
+  } catch(e) {
+    // Fallback : ouvrir l'image dans un nouvel onglet si le fetch échoue (CORS)
+    window.open(imgUrl, '_blank');
+    toast('Image ouverte — clic droit → Enregistrer','ok');
+  }
+}
+
 async function affDemanderRetrait(){
   var montant = parseInt(document.getElementById('affRetraitMontant').value)||0;
   var tel = (document.getElementById('affRetraitTel').value||'').trim();
+  var oper = document.getElementById('affRetraitOper').value;
   var errEl = document.getElementById('affRetraitErr');
   var okEl  = document.getElementById('affRetraitOk');
   errEl.style.display='none'; okEl.style.display='none';
@@ -2157,12 +2250,13 @@ async function affDemanderRetrait(){
   try {
     await window._addDoc(window._collection(window._db,'retraits'),{
       affCode:_aff.code,affNom:_aff.nom,montant,tel,
-      operateur:_aff.operateur,statut:'en_attente',createdAt:Date.now()
+      operateur:oper,statut:'en_attente',createdAt:Date.now()
     });
-    okEl.textContent='✅ Demande envoyée ! Paiement sous 24-48h sur votre '+_aff.operateur+'.';
+    okEl.textContent='✅ Demande envoyée ! Paiement sous 24-48h sur votre '+oper+'.';
     okEl.style.display='block';
     document.getElementById('affRetraitMontant').value='';
     toast('✅ Retrait demandé !','ok');
+    affRenderDashboard();
   } catch(e){errEl.textContent='Erreur : '+e.message;errEl.style.display='block';}
 }
 
